@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telfast DADD Certificate</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-4">
+
+    <div class="card-container max-w-lg w-full bg-white rounded-2xl shadow-xl p-6 text-center">
+        <h1 class="title text-2xl font-bold mb-2">Registration Successful!</h1>
+        <p class="description text-gray-600 mb-6 text-sm" id="description">You can preview and download your certificate
+            below.</p>
+
+        <div class="preview-box border rounded-lg overflow-hidden mb-6 bg-gray-100 relative">
+            <canvas id="certCanvas" class="w-full h-auto"></canvas>
+            <img id="sourceImage" src="Certificate.png" style="display:none;" onload="drawCertificate()">
+        </div>
+
+        <button onclick="downloadPDF()"
+            class="download-btn w-full text-white py-4 rounded-xl font-bold shadow-lg transition-all">
+            Save as PDF
+        </button>
+
+        <p class="footer-brand mt-4 text-xs text-gray-400 font-medium uppercase tracking-widest">Opella</p>
+    </div>
+
+    <script>
+        function drawCertificate() {
+            const params = new URLSearchParams(window.location.search);
+            const rawName = params.get('name');
+            const rawDate = params.get('date');
+
+            // 1. Process Name: Add "Dr." Prefix
+            let displayName = "";
+            if (rawName) {
+                // Check if user already typed Dr. to avoid double prefix
+                if (rawName.toLowerCase().startsWith('dr') || rawName.toLowerCase().startsWith('dr.')) {
+                    displayName = rawName;
+                } else {
+                    displayName = `Dr. ${rawName}`;
+                }
+            }
+
+            // 2. Process Date: Handle JotForm format
+            let displayDate = "";
+
+            if (rawDate) {
+                // Try to format JotForm date (usually YYYY-MM-DD HH:MM:SS) to DD/MM/YY
+                try {
+                    // Take only the date part (before the space)
+                    const datePart = rawDate.split(' ')[0];
+                    const parts = datePart.split('-'); // Split YYYY-MM-DD
+
+                    if (parts.length === 3) {
+                        // Reconstruct as DD/MM/YY
+                        displayDate = `${parts[2]}/${parts[1]}/${parts[0].slice(-2)}`;
+                    } else {
+                        displayDate = rawDate; // Fallback: use raw date if format is unexpected
+                    }
+                } catch (e) {
+                    displayDate = rawDate;
+                }
+            } else {
+                // If no date provided, use today's date
+                const today = new Date();
+                const day = String(today.getDate()).padStart(2, '0');
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const year = String(today.getFullYear()).slice(-2);
+                displayDate = `${day}/${month}/${year}`;
+            }
+
+            // Debug: Log parameters to console
+            console.log('Certificate Data:', {
+                originalName: rawName,
+                finalName: displayName,
+                originalDate: rawDate,
+                finalDate: displayDate
+            });
+
+            // Update UI description
+            const description = document.getElementById('description');
+            description.innerHTML = `You can preview and download your certificate below.<br><small style="color: #999;">Name: ${displayName || 'Not provided'} | Date: ${displayDate}</small>`;
+
+            const canvas = document.getElementById('certCanvas');
+            const ctx = canvas.getContext('2d');
+            const img = document.getElementById('sourceImage');
+
+            // Wait for image to be fully loaded
+            if (!img.complete || img.naturalWidth === 0) {
+                console.log('Image not loaded yet, waiting...');
+                return; // Exit and wait for onload to call this function again
+            }
+
+            console.log('Drawing certificate with image dimensions:', img.naturalWidth, 'x', img.naturalHeight);
+
+            // Set Canvas size to match Image
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+
+            // Draw Background Image
+            ctx.drawImage(img, 0, 0);
+            console.log('Background image drawn');
+
+            // Draw Name (on the blank line after "CERTIFICATE")
+            if (displayName) {
+                ctx.font = 'bold 40px Arial';
+                ctx.fillStyle = '#000000';
+                ctx.textAlign = 'center';
+                // Centered on the blank line below "OF ATTENDANCE"
+                ctx.fillText(displayName, 230, 400);
+                console.log('Name drawn at position:', 230, 400);
+            }
+
+            // Draw Date (after "meeting on date:")
+            if (displayDate) {
+                ctx.font = '28px Arial';
+                ctx.fillStyle = '#000000';
+                ctx.textAlign = 'left';
+                // After the "meeting on date:" text
+                ctx.fillText(displayDate, 320, 500);
+                console.log('Date drawn at position:', 320, 500);
+            }
+
+            console.log('Certificate drawing complete!');
+        }
+
+        // Also call drawCertificate when page loads, in case image is already cached
+        window.addEventListener('load', function () {
+            console.log('Page loaded, attempting to draw certificate');
+            drawCertificate();
+        });
+
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const canvas = document.getElementById('certCanvas');
+
+            // Generate PDF from the Canvas
+            const doc = new jsPDF({
+                orientation: "landscape",
+                unit: "px",
+                format: [canvas.width, canvas.height]
+            });
+
+            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+            doc.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+            doc.save('AllergyAcademy_Certificate.pdf');
+        }
+    </script>
+</body>
+
+</html>
